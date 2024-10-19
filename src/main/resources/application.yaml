@@ -2,10 +2,14 @@ spring:
   application:
     name: demo
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
+    url: jdbc:postgresql://localhost:5430/postgres
     username: postgres
     password: 228
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     show-sql: true
+
+jwt:
+  secret: MatorinFedorAndreevichBIB101200000
+  expiration: 3600000
