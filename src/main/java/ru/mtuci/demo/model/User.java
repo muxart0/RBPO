@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.util.List;
 
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -49,6 +50,7 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("user")
     private List<License> usedLicenses;
+
 
 
 }

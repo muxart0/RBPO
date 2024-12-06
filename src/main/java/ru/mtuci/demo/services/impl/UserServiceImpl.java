@@ -44,6 +44,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User getByLogin(String login)  {
+        return userRepository.findByLogin(login).orElse(new User());
+    }
+
+    @Override
     public void create(String login, String name, String password) throws UserAlreadyCreate {
         if (userRepository.findByLogin(login).isPresent()) throw new UserAlreadyCreate(login);
         var user = new User();

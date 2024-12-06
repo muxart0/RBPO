@@ -1,5 +1,4 @@
 package ru.mtuci.demo.model;
-
 import java.util.Date;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -11,7 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -30,7 +28,6 @@ public class LicenseHistory {
     @ManyToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
-
     private String status;
     private Date changeDate;
     private String description;

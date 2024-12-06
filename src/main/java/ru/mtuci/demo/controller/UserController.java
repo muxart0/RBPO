@@ -12,6 +12,7 @@ import ru.mtuci.demo.services.UserService;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @RequestMapping("users")
