@@ -1,4 +1,5 @@
 package ru.mtuci.demo.model;
+import java.time.LocalDate;
 import java.util.Date;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -29,6 +30,6 @@ public class LicenseHistory {
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
     private String status;
-    private Date changeDate;
+    private LocalDate changeDate;
     private String description;
 }

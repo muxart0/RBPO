@@ -7,6 +7,9 @@ import ru.mtuci.demo.model.User;
 import ru.mtuci.demo.repo.LicenseHistoryRepository; // Предполагаю, что у вас есть репозиторий для LicenseHistory
 import ru.mtuci.demo.services.LicenseHistoryService;
 
+import java.time.LocalDate;
+import java.util.Locale;
+
 @Service
 public class LicenseHistoryServiceImpl implements LicenseHistoryService {
 
@@ -20,6 +23,7 @@ public class LicenseHistoryServiceImpl implements LicenseHistoryService {
     public void recordLicenseChange(License license, User user, String status, String description) {
 
         LicenseHistory licenseHistory = new LicenseHistory();
+        licenseHistory.setChangeDate(LocalDate.now());
         licenseHistory.setLicense(license);
         licenseHistory.setUser(user);
         licenseHistory.setStatus(status);

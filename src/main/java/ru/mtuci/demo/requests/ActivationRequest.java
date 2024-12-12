@@ -1,4 +1,4 @@
-package ru.mtuci.demo.services.impl;
+package ru.mtuci.demo.requests;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -8,5 +8,5 @@ import lombok.Data;
 public class ActivationRequest {
     private String activationCode;
     private String deviceInfo;
-
+    private String deviceName;
 }

@@ -1,11 +1,9 @@
-package ru.mtuci.demo.services.impl;
+package ru.mtuci.demo.responses;
 
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @NoArgsConstructor
 @AllArgsConstructor

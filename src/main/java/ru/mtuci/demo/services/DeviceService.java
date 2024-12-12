@@ -4,5 +4,7 @@ import ru.mtuci.demo.model.Device;
 import ru.mtuci.demo.model.User;
 
 public interface DeviceService {
-    public Device registerOrUpdateDevice(String deviceInfo, User user);
+    Device registerOrUpdateDevice(String deviceInfo, User user, String Name);
+
+    Device getDeviceByMac(String mac);
 }

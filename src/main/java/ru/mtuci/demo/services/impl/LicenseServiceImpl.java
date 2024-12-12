@@ -4,12 +4,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import ru.mtuci.demo.exception.ActivationException;
+import ru.mtuci.demo.exception.DeviceNotFoundException;
+import ru.mtuci.demo.exception.LicenseException;
 import ru.mtuci.demo.exception.LicenseNotFoundException;
 import ru.mtuci.demo.model.Device;
 import ru.mtuci.demo.model.DeviceLicense;
 import ru.mtuci.demo.model.License;
+import ru.mtuci.demo.model.User;
 import ru.mtuci.demo.repo.DeviceLicenseRepository;
 import ru.mtuci.demo.repo.LicenseRepository;
+import ru.mtuci.demo.requests.ActivationRequest;
+import ru.mtuci.demo.requests.LicenseCreateRequest;
+import ru.mtuci.demo.responses.LicenseResponse;
 import ru.mtuci.demo.services.*;
 import ru.mtuci.demo.ticket.Ticket;
 
@@ -27,7 +33,7 @@ public class LicenseServiceImpl implements LicenseService {
     private final LicenseTypeService licenseTypeService;
     private final LicenseHistoryService licenseHistoryService;
     private final DeviceService deviceService;
-    private final DeviceLicenseRepository deviceLicenseRepository;
+    private final DeviceLicenseService deviceLicenseService;
 
 
 
@@ -44,31 +50,21 @@ public class LicenseServiceImpl implements LicenseService {
     @Override
     public License getById(Long id) {
         return licenseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("License not found"));
+                .orElseThrow(() -> new LicenseException("Лицензия не найдена"));
     }
 
     @Override
     public License getByKey(String key) {
         return licenseRepository.findByKey(key)
-                .orElseThrow(() -> new RuntimeException("License not found"));
+                .orElseThrow(() -> new LicenseException("Лицензия не найдена"));
     }
 
     @Override
-    public ResponseEntity<LicenseResponse> createLicense(Long productId, Long ownerId, Long licenseTypeId, License licenseParameters) {
-        var product = productService.getProductById(productId);
-        if (product == null) {
-            throw new RuntimeException("Продукт не найден");
-        }
+    public ResponseEntity<LicenseResponse> createLicense(LicenseCreateRequest request) {
+        var product = productService.getProductById(request.getProductId());
+        var user = userService.getById(request.getOwnerId());
+        var licenseType = licenseTypeService.getLicenseTypeById(request.getLicenseTypeId());
 
-        var user = userService.getById(ownerId);
-        if (user == null) {
-            throw new RuntimeException("Пользователь не найден");
-        }
-
-        var licenseType = licenseTypeService.getLicenseTypeById(licenseTypeId);
-        if (licenseType == null) {
-            throw new RuntimeException("Тип лицензии не найден");
-        }
 
         License license = new License();
         license.setProduct(product);
@@ -83,32 +79,30 @@ public class LicenseServiceImpl implements LicenseService {
 
         licenseRepository.save(license);
 
-        licenseHistoryService.recordLicenseChange(license, user, "Создана", "Лицензия успешно создана");
+        licenseHistoryService.recordLicenseChange(license, user, "Создано", "Лицензия успешно создана");
 
         LicenseResponse response = new LicenseResponse(
             license.getLicense_id(), license.getKey(),
-                licenseTypeId, license.getBlocked(),
-                license.getDevice_count(), ownerId,
+                licenseType.getId(), license.getBlocked(),
+                license.getDevice_count(), user.getId(),
                 license.getDuration(), license.getDescription(),
-                productId
+                product.getId()
         );
 
         return ResponseEntity.ok(response);
     }
 
     @Override
-    public Ticket activateLicense(ActivationRequest request, String username) {
-        License license = licenseRepository.findByKey(request.getActivationCode())
-                .orElseThrow(() -> new LicenseNotFoundException("Лицензия не найдена"));
+    public Ticket activateLicense(ActivationRequest request, User user) {
+        License license = getByKey(request.getActivationCode());
 
-        if (license.getBlocked()) {
+        if (isLicenseBlocked(license)) {
             throw new ActivationException("Активация невозможна");
         }
-        var user = userService.getByLogin(username);
 
         verifyLicenseOwnership(license, user.getId());
-
-        Device device = deviceService.registerOrUpdateDevice(request.getDeviceInfo(),user);
+        Device device = deviceService.registerOrUpdateDevice(request.getDeviceInfo(),user,request.getDeviceName());
+        checkDeviceLicense(device);
 
         license.setUser(user);
         license.setDevice_count(license.getDevice_count()+1);
@@ -117,7 +111,7 @@ public class LicenseServiceImpl implements LicenseService {
 
         DeviceLicense deviceLicense = new DeviceLicense(license, device, license.getFirst_date_activate());
 
-        deviceLicenseRepository.save(deviceLicense);
+        deviceLicenseService.saveDeviceLicense(deviceLicense);
         licenseRepository.save(license);
 
 
@@ -128,14 +122,71 @@ public class LicenseServiceImpl implements LicenseService {
         return ticket;
     }
 
-    private void verifyLicenseOwnership(License license, Long newUserId) {
+    @Override
+    public ResponseEntity<LicenseResponse> renewLicense(Long licenseId, String newActivationKey, User user) {
+        License oldLicense = getById(licenseId);
+        if(oldLicense.getUser() == null){
+            throw new LicenseException("Нельзя продлить неактивированную лицензию");
+        }
+        if (isLicenseBlocked(oldLicense)) {
+            throw new LicenseException("Невозможно продлить заблокированную лицензию");
+        }
 
+        verifyLicenseOwnership(oldLicense, user.getId());
+
+        License newLicense = getByKey(newActivationKey);
+
+        verifyLicenseCompatibility(oldLicense, newLicense);
+
+        oldLicense.setDuration(oldLicense.getDuration() + newLicense.getDuration());
+        oldLicense.setKey(newActivationKey);
+        oldLicense.setEnding_date(oldLicense.getEnding_date().plusDays(newLicense.getDuration()));
+        oldLicense.setBlocked(false);
+
+        LicenseResponse response = new LicenseResponse(
+                oldLicense.getLicense_id(), oldLicense.getKey(),
+                oldLicense.getLicenseType().getId(), oldLicense.getBlocked(),
+                oldLicense.getDevice_count(), oldLicense.getOwner().getId(),
+                oldLicense.getDuration(), oldLicense.getDescription(),
+                oldLicense.getProduct().getId()
+        );
+
+        licenseRepository.save(oldLicense);
+        licenseHistoryService.recordLicenseChange(oldLicense, user,"Продлено", "Лицензия успешно продлена");
+        licenseRepository.delete(newLicense);
+        return ResponseEntity.ok(response);
+    }
+
+    public License getActiveLicensesForDevice(Device device, User user){
+        DeviceLicense deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
+        return licenseRepository.findById(deviceLicense.getDevice().getId())
+                .orElseThrow(() -> new LicenseNotFoundException("Лицензия не найдена"));
+    }
+
+    private void verifyLicenseOwnership(License license, Long newUserId) {
         if (license.getUser() != null) {
             Long currentUserId = license.getUser().getId();
-
             if (!currentUserId.equals(newUserId)) {
                 throw new ActivationException("Лицензия принадлежит другому пользователю.");
             }
+        }
+    }
+
+    public boolean isLicenseBlocked(License license) {
+        return license.getBlocked();
+    }
+
+    private void verifyLicenseCompatibility(License oldLicense, License newLicense) {
+        if (!oldLicense.getProduct().getId().equals(newLicense.getProduct().getId())) {
+            throw new LicenseException("Продукты старой и новой лицензий не совпадают");
+        }
+
+        if (!oldLicense.getLicenseType().getId().equals(newLicense.getLicenseType().getId())) {
+            throw new LicenseException("Типы лицензий не совпадают");
+        }
+
+        if(oldLicense.equals(newLicense)){
+            throw new LicenseException("Лицензии совпадают");
         }
     }
 
@@ -143,4 +194,16 @@ public class LicenseServiceImpl implements LicenseService {
         return UUID.randomUUID().toString();
     }
 
+    public void checkDeviceLicense(Device device) {
+        DeviceLicense deviceLicense;
+        try {
+            deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
+        } catch (Exception e) {
+            return;
+        }
+        License license = getById(deviceLicense.getLicense().getLicense_id());
+        if(!license.getBlocked()){
+            throw new DeviceNotFoundException("Устройство с таким MAC-адресом и лицензией уже существует");
+        }
+    }
 }

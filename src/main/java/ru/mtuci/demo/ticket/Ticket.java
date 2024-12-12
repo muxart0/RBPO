@@ -20,7 +20,7 @@ public class Ticket {
     private String deviceId;
     private Boolean licenseBlocked;
     private String digitalSignature;
-
+    private Long licenseTypeId;
     public Ticket generateTicket(License license, Device device, Long userId) {
         Ticket ticket = new Ticket();
 
@@ -33,7 +33,7 @@ public class Ticket {
         ticket.setDeviceId(device.getId().toString());
         ticket.setLicenseBlocked(license.getBlocked());
         ticket.setDigitalSignature(generateDigitalSignature(license, device, userId));
-
+        ticket.setLicenseTypeId(license.getLicenseType().getId());
         return ticket;
     }
 

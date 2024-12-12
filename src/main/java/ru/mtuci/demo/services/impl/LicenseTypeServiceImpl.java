@@ -1,6 +1,7 @@
 package ru.mtuci.demo.services.impl;
 
 import org.springframework.stereotype.Service;
+import ru.mtuci.demo.exception.LicenseException;
 import ru.mtuci.demo.model.LicenseType;
 import ru.mtuci.demo.repo.LicenseTypeRepository; // Предполагаю, что у вас есть репозиторий для LicenseType
 import ru.mtuci.demo.services.LicenseTypeService;
@@ -17,7 +18,7 @@ public class LicenseTypeServiceImpl implements LicenseTypeService {
     @Override
     public LicenseType getLicenseTypeById(Long id) {
         return licenseTypeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("License Type not found"));
+                .orElseThrow(() -> new LicenseException("License Type not found"));
     }
 }
 

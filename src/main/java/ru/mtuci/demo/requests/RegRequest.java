@@ -1,11 +1,12 @@
-package ru.mtuci.demo.authorization;
+package ru.mtuci.demo.requests;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
 @Data
-public class LoginRequest {
+public class RegRequest {
     private String login;
+    private String name;
     private String password;
 }

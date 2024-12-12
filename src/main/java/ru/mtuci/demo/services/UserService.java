@@ -1,5 +1,6 @@
 package ru.mtuci.demo.services;
 
+import jakarta.servlet.http.HttpServletRequest;
 import ru.mtuci.demo.model.User;
 import ru.mtuci.demo.exception.UserAlreadyCreate;
 
@@ -12,6 +13,6 @@ public interface UserService {
     User getById(Long id);
     User getByName(String name);
     User getByLogin(String login);
-
+    User getUserByJwt(HttpServletRequest httpRequest);
     void create(String login, String name, String password) throws UserAlreadyCreate;
 }
