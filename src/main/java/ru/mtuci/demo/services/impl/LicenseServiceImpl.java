@@ -11,7 +11,6 @@ import ru.mtuci.demo.model.Device;
 import ru.mtuci.demo.model.DeviceLicense;
 import ru.mtuci.demo.model.License;
 import ru.mtuci.demo.model.User;
-import ru.mtuci.demo.repo.DeviceLicenseRepository;
 import ru.mtuci.demo.repo.LicenseRepository;
 import ru.mtuci.demo.requests.ActivationRequest;
 import ru.mtuci.demo.requests.LicenseCreateRequest;
@@ -159,7 +158,7 @@ public class LicenseServiceImpl implements LicenseService {
 
     public License getActiveLicensesForDevice(Device device, User user){
         DeviceLicense deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
-        return licenseRepository.findById(deviceLicense.getDevice().getId())
+        return licenseRepository.findById(deviceLicense.getLicense().getLicense_id())
                 .orElseThrow(() -> new LicenseNotFoundException("Лицензия не найдена"));
     }
 
