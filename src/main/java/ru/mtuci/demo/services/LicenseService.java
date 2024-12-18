@@ -26,5 +26,5 @@ public interface LicenseService {
 
     License getByKey(String key);
 
-    ResponseEntity<LicenseResponse> renewLicense(Long licenseId, String newActivationKey, User user);
+    ResponseEntity<Ticket> renewLicense(String deviceInfo, String newActivationKey, User user);
 }

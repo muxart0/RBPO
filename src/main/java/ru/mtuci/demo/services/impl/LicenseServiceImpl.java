@@ -7,10 +7,7 @@ import ru.mtuci.demo.exception.ActivationException;
 import ru.mtuci.demo.exception.DeviceNotFoundException;
 import ru.mtuci.demo.exception.LicenseException;
 import ru.mtuci.demo.exception.LicenseNotFoundException;
-import ru.mtuci.demo.model.Device;
-import ru.mtuci.demo.model.DeviceLicense;
-import ru.mtuci.demo.model.License;
-import ru.mtuci.demo.model.User;
+import ru.mtuci.demo.model.*;
 import ru.mtuci.demo.repo.LicenseRepository;
 import ru.mtuci.demo.requests.ActivationRequest;
 import ru.mtuci.demo.requests.LicenseCreateRequest;
@@ -33,7 +30,6 @@ public class LicenseServiceImpl implements LicenseService {
     private final LicenseHistoryService licenseHistoryService;
     private final DeviceService deviceService;
     private final DeviceLicenseService deviceLicenseService;
-
 
 
     @Override
@@ -60,10 +56,9 @@ public class LicenseServiceImpl implements LicenseService {
 
     @Override
     public ResponseEntity<LicenseResponse> createLicense(LicenseCreateRequest request) {
-        var product = productService.getProductById(request.getProductId());
-        var user = userService.getById(request.getOwnerId());
-        var licenseType = licenseTypeService.getLicenseTypeById(request.getLicenseTypeId());
-
+        Products product = productService.getProductById(request.getProductId());
+        User user = userService.getById(request.getOwnerId());
+        LicenseType licenseType = licenseTypeService.getLicenseTypeById(request.getLicenseTypeId());
 
         License license = new License();
         license.setProduct(product);
@@ -95,11 +90,9 @@ public class LicenseServiceImpl implements LicenseService {
     public Ticket activateLicense(ActivationRequest request, User user) {
         License license = getByKey(request.getActivationCode());
 
-        if (isLicenseBlocked(license)) {
-            throw new ActivationException("Активация невозможна");
-        }
-
+        verifyBlockLicense(license);
         verifyLicenseOwnership(license, user.getId());
+
         Device device = deviceService.registerOrUpdateDevice(request.getDeviceInfo(),user,request.getDeviceName());
         checkDeviceLicense(device);
 
@@ -122,18 +115,17 @@ public class LicenseServiceImpl implements LicenseService {
     }
 
     @Override
-    public ResponseEntity<LicenseResponse> renewLicense(Long licenseId, String newActivationKey, User user) {
-        License oldLicense = getById(licenseId);
-        if(oldLicense.getUser() == null){
-            throw new LicenseException("Нельзя продлить неактивированную лицензию");
-        }
-        if (isLicenseBlocked(oldLicense)) {
-            throw new LicenseException("Невозможно продлить заблокированную лицензию");
-        }
+    public ResponseEntity<Ticket> renewLicense(String deviceInfo, String newActivationKey, User user) {
+        Device device = deviceService.getDeviceByMac(deviceInfo);
+        DeviceLicense deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
+        License oldLicense = getById(deviceLicense.getLicense().getLicense_id());
 
+        verifyOldLicense(oldLicense);
         verifyLicenseOwnership(oldLicense, user.getId());
 
         License newLicense = getByKey(newActivationKey);
+
+        verifyBlockLicense(newLicense);
 
         verifyLicenseCompatibility(oldLicense, newLicense);
 
@@ -142,18 +134,14 @@ public class LicenseServiceImpl implements LicenseService {
         oldLicense.setEnding_date(oldLicense.getEnding_date().plusDays(newLicense.getDuration()));
         oldLicense.setBlocked(false);
 
-        LicenseResponse response = new LicenseResponse(
-                oldLicense.getLicense_id(), oldLicense.getKey(),
-                oldLicense.getLicenseType().getId(), oldLicense.getBlocked(),
-                oldLicense.getDevice_count(), oldLicense.getOwner().getId(),
-                oldLicense.getDuration(), oldLicense.getDescription(),
-                oldLicense.getProduct().getId()
-        );
+        Ticket ticket = new Ticket();
+        ticket = ticket.generateTicket(oldLicense, device, user.getId());
 
         licenseRepository.save(oldLicense);
         licenseHistoryService.recordLicenseChange(oldLicense, user,"Продлено", "Лицензия успешно продлена");
         licenseRepository.delete(newLicense);
-        return ResponseEntity.ok(response);
+
+        return ResponseEntity.ok(ticket);
     }
 
     public License getActiveLicensesForDevice(Device device, User user){
@@ -187,7 +175,27 @@ public class LicenseServiceImpl implements LicenseService {
         if(oldLicense.equals(newLicense)){
             throw new LicenseException("Лицензии совпадают");
         }
+
     }
+
+    private void verifyBlockLicense(License license) {
+        if (isLicenseBlocked(license)) {
+            throw new LicenseException("Невозможно продлить на заблокированную лицензию");
+        }
+    }
+
+    private void verifyOldLicense(License oldLicense) {
+        if(oldLicense.getUser() == null){
+            throw new LicenseException("Нельзя продлить неактивированную лицензию");
+        }
+
+        verifyBlockLicense(oldLicense);
+
+        if (!oldLicense.getEnding_date().isAfter(LocalDate.now())) {
+            throw new LicenseException("Нельзя продлить истекшую лицензию");
+        }
+    }
+
 
     private String generateActivationCode() {
         return UUID.randomUUID().toString();

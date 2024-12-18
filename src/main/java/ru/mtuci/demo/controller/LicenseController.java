@@ -3,12 +3,9 @@ package ru.mtuci.demo.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import ru.mtuci.demo.exception.ActivationException;
-import ru.mtuci.demo.exception.LicenseNotFoundException;
 import ru.mtuci.demo.model.Device;
 import ru.mtuci.demo.model.License;
 import ru.mtuci.demo.model.User;
@@ -77,7 +74,7 @@ public class LicenseController {
     @PostMapping("/renewal")
     public ResponseEntity<?> renewLicense(@RequestBody LicenseRenewalRequest request, HttpServletRequest httpRequest) {
         User authenticatedUser = getAuthenticatedUser(httpRequest);
-        return licenseService.renewLicense(request.getLicenseId(),
+        return licenseService.renewLicense(request.getDeviceInfo(),
                 request.getNewActivationKey(), authenticatedUser);
     }
 
