@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.UUID;
 
+//TODO: 1. Как, используя ваш API, добавить новый продукт, тип лицензии или получить историю изменения лицензии?
+
 @RequiredArgsConstructor
 @RequestMapping("users")
 @RestController

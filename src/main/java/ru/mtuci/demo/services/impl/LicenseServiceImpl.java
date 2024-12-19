@@ -19,6 +19,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+//TODO: 1. createLicense - Обсуждали на занятии, что deviceCount - максимальное число устройств. Почему оно 0 при создании?
+//TODO: 2. ResponseEntity<LicenseResponse> - некорректно использовать в бизнес-логике. Этот тип вынести в контроллер
+//TODO: 3. activateLicense - нет разделения первой и повторной активации
+//TODO: 4. renewLicense - ключ активации не должен меняться, а тем более приходить извне
+//TODO: 5. deviceLicenseService.getDeviceLicenseByDeviceId - в таблице одному id устройства может соответствовать много лицензий, а у вас будто нет
+
 @RequiredArgsConstructor
 @Service
 public class LicenseServiceImpl implements LicenseService {

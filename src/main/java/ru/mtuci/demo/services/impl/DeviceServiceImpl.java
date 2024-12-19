@@ -13,6 +13,8 @@ import ru.mtuci.demo.services.DeviceLicenseService;
 import ru.mtuci.demo.services.DeviceService;
 import ru.mtuci.demo.services.LicenseService;
 
+//TODO 1. registerOrUpdateDevice - потенциально любой пользователь может присвоить устройство себе?
+
 @RequiredArgsConstructor
 @Service
 public class DeviceServiceImpl implements DeviceService {
