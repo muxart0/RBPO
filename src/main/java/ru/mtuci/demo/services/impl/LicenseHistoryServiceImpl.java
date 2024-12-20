@@ -4,7 +4,10 @@ import org.springframework.stereotype.Service;
 import ru.mtuci.demo.model.License;
 import ru.mtuci.demo.model.LicenseHistory;
 import ru.mtuci.demo.model.User;
+
 import ru.mtuci.demo.repo.LicenseHistoryRepository;
+//TODO: ! Предполагаю, что по работе мы поговорим с вами очень подробно
+
 import ru.mtuci.demo.services.LicenseHistoryService;
 
 import java.time.LocalDate;

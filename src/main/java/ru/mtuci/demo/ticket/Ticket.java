@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 import ru.mtuci.demo.model.Device;
 import ru.mtuci.demo.model.License;
 
+//TODO: 1. Метод генерации подписи не является криптографически стойким, так как UUID не предназначен для защиты данных от модификации или подделки
+
 @NoArgsConstructor
 @Data
 public class Ticket {
