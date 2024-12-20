@@ -1,6 +1,5 @@
 package ru.mtuci.demo.model;
 import java.time.LocalDate;
-import java.util.Date;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,7 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+
 //TODO: 1. Проверить связь с устройствами
+
 
 @NoArgsConstructor
 @AllArgsConstructor

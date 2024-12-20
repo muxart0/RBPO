@@ -7,5 +7,5 @@ import lombok.Data;
 @AllArgsConstructor
 public class LicenseRenewalRequest {
     private String deviceInfo;
-    private String newActivationKey;
+    private Long licenseId;
 }

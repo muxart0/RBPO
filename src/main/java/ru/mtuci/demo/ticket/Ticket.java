@@ -1,5 +1,8 @@
 package ru.mtuci.demo.ticket;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.UUID;
 
@@ -23,9 +26,9 @@ public class Ticket {
     private Boolean licenseBlocked;
     private String digitalSignature;
     private Long licenseTypeId;
+
     public Ticket generateTicket(License license, Device device, Long userId) {
         Ticket ticket = new Ticket();
-
 
         ticket.setServerDate(new Date());
         ticket.setTicketLifetime(license.getDuration() * 24L * 60 * 60 * 1000);
@@ -36,13 +39,27 @@ public class Ticket {
         ticket.setLicenseBlocked(license.getBlocked());
         ticket.setDigitalSignature(generateDigitalSignature(license, device, userId));
         ticket.setLicenseTypeId(license.getLicenseType().getId());
+
         return ticket;
     }
 
     private String generateDigitalSignature(License license, Device device, Long userId) {
-        String rawData = license.getKey() + device.getId() + userId + license.getEnding_date();
-        return UUID.nameUUIDFromBytes(rawData.getBytes()).toString();
+        try {
+            String rawData = license.getKey() + device.getId() + userId + license.getEnding_date();
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawData.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Ошибка при генерации цифровой подписи: SHA-256 недоступен.", e);
+        }
     }
-
-
 }
