@@ -1,6 +1,7 @@
 package ru.mtuci.demo.model;
 import java.time.LocalDate;
-import java.util.Date;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -24,11 +25,14 @@ public class LicenseHistory {
 
     @ManyToOne
     @JoinColumn(name = "license_id", referencedColumnName = "license_id")
+    @JsonIgnoreProperties("licenseHistories")
     private License license;
 
     @ManyToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @JsonIgnoreProperties({"licenseHistories", "ownedLicenses", "usedLicenses"})
     private User user;
+
     private String status;
     private LocalDate changeDate;
     private String description;

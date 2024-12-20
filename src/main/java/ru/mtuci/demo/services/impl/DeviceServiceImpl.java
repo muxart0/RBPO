@@ -2,16 +2,12 @@ package ru.mtuci.demo.services.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.mtuci.demo.exception.DeviceException;
 import ru.mtuci.demo.exception.DeviceNotFoundException;
 import ru.mtuci.demo.model.Device;
-import ru.mtuci.demo.model.DeviceLicense;
-import ru.mtuci.demo.model.License;
 import ru.mtuci.demo.model.User;
-import ru.mtuci.demo.repo.DeviceLicenseRepository;
 import ru.mtuci.demo.repo.DeviceRepository;
-import ru.mtuci.demo.services.DeviceLicenseService;
 import ru.mtuci.demo.services.DeviceService;
-import ru.mtuci.demo.services.LicenseService;
 
 @RequiredArgsConstructor
 @Service
@@ -25,14 +21,21 @@ public class DeviceServiceImpl implements DeviceService {
                 .orElseThrow(() -> new DeviceNotFoundException("Устройство не найдено"));
     }
 
-    public Device registerOrUpdateDevice(String deviceInfo, User user, String Name) {
+    public Device registerOrUpdateDevice(String deviceInfo, User user, String name) {
         Device device = deviceRepository.findByMac(deviceInfo)
                 .orElse(new Device());
 
+        if (device.getId() != null) {
+            if (!device.getUser().getId().equals(user.getId())) {
+                throw new DeviceException("Устройство принадлежит другому пользователю.");
+            }
+        }
+
         device.setMac(deviceInfo);
         device.setUser(user);
-        device.setName(Name);
+        device.setName(name);
         return deviceRepository.save(device);
     }
+
 }
 

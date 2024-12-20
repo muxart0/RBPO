@@ -38,7 +38,8 @@ public class LicenseController {
     @PostMapping("/create")
     public ResponseEntity<LicenseResponse>  createLicense(
             @RequestBody LicenseCreateRequest request) {
-        return licenseService.createLicense(request);
+        LicenseResponse response = licenseService.createLicense(request);
+        return ResponseEntity.ok(response);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -53,13 +54,16 @@ public class LicenseController {
 
         Device device = deviceService.getDeviceByMac(deviceInfo);
 
-        License activeLicensesForDevice = licenseService.getActiveLicensesForDevice(device, authenticatedUser);
+        List<License> activeLicensesForDevice = licenseService.getActiveLicensesForDevice(device, authenticatedUser);
 
-        Ticket ticket = new Ticket();
-        ticket = ticket.generateTicket(activeLicensesForDevice, device, getAuthenticatedUser(httpRequest).getId());
 
-        return ResponseEntity.ok(ticket);
+        List<Ticket> tickets = activeLicensesForDevice.stream()
+                .map(license -> new Ticket().generateTicket(license, device, authenticatedUser.getId()))
+                .toList();
+
+        return ResponseEntity.ok(tickets);
     }
+
 
     @PostMapping("/activate")
     public ResponseEntity<?> activateLicense(@RequestBody ActivationRequest request,
@@ -74,8 +78,8 @@ public class LicenseController {
     @PostMapping("/renewal")
     public ResponseEntity<?> renewLicense(@RequestBody LicenseRenewalRequest request, HttpServletRequest httpRequest) {
         User authenticatedUser = getAuthenticatedUser(httpRequest);
-        return licenseService.renewLicense(request.getDeviceInfo(),
-                request.getNewActivationKey(), authenticatedUser);
+        Ticket ticket = licenseService.renewLicense(request, authenticatedUser);
+        return ResponseEntity.ok(ticket);
     }
 
 
@@ -83,6 +87,8 @@ public class LicenseController {
     private User getAuthenticatedUser(HttpServletRequest httpRequest) {
         return userService.getUserByJwt(httpRequest);
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public License getById(@PathVariable("id") Long id) {
         return licenseService.getById(id);

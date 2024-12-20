@@ -4,11 +4,12 @@ import org.springframework.stereotype.Service;
 import ru.mtuci.demo.model.License;
 import ru.mtuci.demo.model.LicenseHistory;
 import ru.mtuci.demo.model.User;
-import ru.mtuci.demo.repo.LicenseHistoryRepository; // Предполагаю, что у вас есть репозиторий для LicenseHistory
+import ru.mtuci.demo.repo.LicenseHistoryRepository;
 import ru.mtuci.demo.services.LicenseHistoryService;
 
 import java.time.LocalDate;
-import java.util.Locale;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class LicenseHistoryServiceImpl implements LicenseHistoryService {
@@ -31,4 +32,17 @@ public class LicenseHistoryServiceImpl implements LicenseHistoryService {
 
         licenseHistoryRepository.save(licenseHistory);
     }
+
+    public LicenseHistory addLicenseHistory(LicenseHistory licenseHistory) {
+        return licenseHistoryRepository.save(licenseHistory);
+    }
+
+    public List<LicenseHistory> getAllLicenseHistories() {
+        return licenseHistoryRepository.findAll();
+    }
+
+    public Optional<LicenseHistory> getLicenseHistoryById(Long id) {
+        return licenseHistoryRepository.findById(id);
+    }
+
 }

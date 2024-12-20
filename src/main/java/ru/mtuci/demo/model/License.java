@@ -1,6 +1,6 @@
 package ru.mtuci.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,8 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
+
 
 @Getter
 @Setter
@@ -19,7 +18,7 @@ import java.util.List;
 @Table(name="licenses")
 public class License {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)  // Добавлено для автогенерации идентификатора
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name="license_id")
     private Long license_id;
 
@@ -60,12 +59,7 @@ public class License {
     @JoinColumn(name = "product_id", referencedColumnName = "id")
     private Products product;
 
-    @OneToMany(mappedBy = "license", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("license")
-    private List<LicenseHistory> licenseHistories;
 
-    @OneToMany(mappedBy = "license", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("license")
-    private List<DeviceLicense> deviceLicenses;
+
 
 }

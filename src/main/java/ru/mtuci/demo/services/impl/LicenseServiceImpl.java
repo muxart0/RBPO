@@ -1,16 +1,13 @@
 package ru.mtuci.demo.services.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import ru.mtuci.demo.exception.ActivationException;
-import ru.mtuci.demo.exception.DeviceNotFoundException;
-import ru.mtuci.demo.exception.LicenseException;
-import ru.mtuci.demo.exception.LicenseNotFoundException;
+import ru.mtuci.demo.exception.*;
 import ru.mtuci.demo.model.*;
 import ru.mtuci.demo.repo.LicenseRepository;
 import ru.mtuci.demo.requests.ActivationRequest;
 import ru.mtuci.demo.requests.LicenseCreateRequest;
+import ru.mtuci.demo.requests.LicenseRenewalRequest;
 import ru.mtuci.demo.responses.LicenseResponse;
 import ru.mtuci.demo.services.*;
 import ru.mtuci.demo.ticket.Ticket;
@@ -55,8 +52,11 @@ public class LicenseServiceImpl implements LicenseService {
     }
 
     @Override
-    public ResponseEntity<LicenseResponse> createLicense(LicenseCreateRequest request) {
+    public LicenseResponse createLicense(LicenseCreateRequest request) {
         Products product = productService.getProductById(request.getProductId());
+
+        verifyBlockProduct(product);
+
         User user = userService.getById(request.getOwnerId());
         LicenseType licenseType = licenseTypeService.getLicenseTypeById(request.getLicenseTypeId());
 
@@ -67,7 +67,7 @@ public class LicenseServiceImpl implements LicenseService {
         license.setKey(generateActivationCode());
         license.setDescription(licenseType.getDescription());
         license.setBlocked(false);
-        license.setDevice_count(0);
+        license.setDevice_count(10);
         license.setDuration(licenseType.getDefaultDuration());
 
 
@@ -75,15 +75,13 @@ public class LicenseServiceImpl implements LicenseService {
 
         licenseHistoryService.recordLicenseChange(license, user, "Создано", "Лицензия успешно создана");
 
-        LicenseResponse response = new LicenseResponse(
+        return new LicenseResponse(
             license.getLicense_id(), license.getKey(),
                 licenseType.getId(), license.getBlocked(),
                 license.getDevice_count(), user.getId(),
                 license.getDuration(), license.getDescription(),
                 product.getId()
         );
-
-        return ResponseEntity.ok(response);
     }
 
     @Override
@@ -91,64 +89,81 @@ public class LicenseServiceImpl implements LicenseService {
         License license = getByKey(request.getActivationCode());
 
         verifyBlockLicense(license);
+        verifyBlockProduct(license.getProduct());
         verifyLicenseOwnership(license, user.getId());
 
-        Device device = deviceService.registerOrUpdateDevice(request.getDeviceInfo(),user,request.getDeviceName());
-        checkDeviceLicense(device);
+        Device device = deviceService.registerOrUpdateDevice(request.getDeviceInfo(), user, request.getDeviceName());
 
-        license.setUser(user);
-        license.setDevice_count(license.getDevice_count()+1);
-        license.setFirst_date_activate(LocalDate.now());
-        license.setEnding_date(license.getFirst_date_activate().plusDays(license.getDuration()));
+        checkDeviceActivationLimit(license);
+
+        verifyDeviceUniqueness(device, license);
+
+        if (license.getUser() == null) {
+            license.setUser(user);
+            license.setFirst_date_activate(LocalDate.now());
+            license.setEnding_date(license.getFirst_date_activate().plusDays(license.getDuration()));
+            licenseRepository.save(license);
+        }
 
         DeviceLicense deviceLicense = new DeviceLicense(license, device, license.getFirst_date_activate());
-
         deviceLicenseService.saveDeviceLicense(deviceLicense);
-        licenseRepository.save(license);
 
+        licenseHistoryService.recordLicenseChange(
+                license,
+                user,
+                "Активировано",
+                license.getUser() == null ? "Лицензия успешно активирована впервые" : "Лицензия успешно активирована повторно"
+        );
 
-        licenseHistoryService.recordLicenseChange(license, user,"Активировано", "Лицензия успешно активирована");
         Ticket ticket = new Ticket();
         ticket = ticket.generateTicket(license, device, user.getId());
-
         return ticket;
     }
 
+
+
     @Override
-    public ResponseEntity<Ticket> renewLicense(String deviceInfo, String newActivationKey, User user) {
-        Device device = deviceService.getDeviceByMac(deviceInfo);
-        DeviceLicense deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
-        License oldLicense = getById(deviceLicense.getLicense().getLicense_id());
+    public Ticket renewLicense(LicenseRenewalRequest request, User user) {
+
+        License oldLicense = getById(request.getLicenseId());
+        verifyBlockProduct(oldLicense.getProduct());
 
         verifyOldLicense(oldLicense);
         verifyLicenseOwnership(oldLicense, user.getId());
 
-        License newLicense = getByKey(newActivationKey);
 
-        verifyBlockLicense(newLicense);
+        oldLicense.setDuration(oldLicense.getDuration() + oldLicense.getLicenseType().getDefaultDuration());
+        oldLicense.setEnding_date(oldLicense.getEnding_date().plusDays(oldLicense.getLicenseType().getDefaultDuration()));
 
-        verifyLicenseCompatibility(oldLicense, newLicense);
 
-        oldLicense.setDuration(oldLicense.getDuration() + newLicense.getDuration());
-        oldLicense.setKey(newActivationKey);
-        oldLicense.setEnding_date(oldLicense.getEnding_date().plusDays(newLicense.getDuration()));
-        oldLicense.setBlocked(false);
+        licenseRepository.save(oldLicense);
+
+        licenseHistoryService.recordLicenseChange(oldLicense, user, "Продлено", "Лицензия успешно продлена");
+
+
+        Device device = deviceService.getDeviceByMac(request.getDeviceInfo());
 
         Ticket ticket = new Ticket();
         ticket = ticket.generateTicket(oldLicense, device, user.getId());
 
-        licenseRepository.save(oldLicense);
-        licenseHistoryService.recordLicenseChange(oldLicense, user,"Продлено", "Лицензия успешно продлена");
-        licenseRepository.delete(newLicense);
-
-        return ResponseEntity.ok(ticket);
+        return ticket;
     }
 
-    public License getActiveLicensesForDevice(Device device, User user){
-        DeviceLicense deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
-        return licenseRepository.findById(deviceLicense.getLicense().getLicense_id())
-                .orElseThrow(() -> new LicenseNotFoundException("Лицензия не найдена"));
+
+    public List<License> getActiveLicensesForDevice(Device device, User user) {
+        List<DeviceLicense> deviceLicenses = deviceLicenseService.getAllLicensesForDevice(device.getId());
+
+        if (deviceLicenses.isEmpty()) {
+            throw new LicenseNotFoundException("Лицензии для устройства не найдены.");
+        }
+
+        return deviceLicenses.stream()
+                .map(deviceLicense -> licenseRepository.findById(deviceLicense.getLicense().getLicense_id())
+                        .orElseThrow(() -> new LicenseNotFoundException("Лицензия не найдена")))
+                .filter(license -> license.getUser().getId().equals(user.getId()))
+                .toList();
     }
+
 
     private void verifyLicenseOwnership(License license, Long newUserId) {
         if (license.getUser() != null) {
@@ -163,20 +178,6 @@ public class LicenseServiceImpl implements LicenseService {
         return license.getBlocked();
     }
 
-    private void verifyLicenseCompatibility(License oldLicense, License newLicense) {
-        if (!oldLicense.getProduct().getId().equals(newLicense.getProduct().getId())) {
-            throw new LicenseException("Продукты старой и новой лицензий не совпадают");
-        }
-
-        if (!oldLicense.getLicenseType().getId().equals(newLicense.getLicenseType().getId())) {
-            throw new LicenseException("Типы лицензий не совпадают");
-        }
-
-        if(oldLicense.equals(newLicense)){
-            throw new LicenseException("Лицензии совпадают");
-        }
-
-    }
 
     private void verifyBlockLicense(License license) {
         if (isLicenseBlocked(license)) {
@@ -201,16 +202,39 @@ public class LicenseServiceImpl implements LicenseService {
         return UUID.randomUUID().toString();
     }
 
-    public void checkDeviceLicense(Device device) {
-        DeviceLicense deviceLicense;
-        try {
-            deviceLicense = deviceLicenseService.getDeviceLicenseByDeviceId(device.getId());
-        } catch (Exception e) {
-            return;
-        }
-        License license = getById(deviceLicense.getLicense().getLicense_id());
-        if(!license.getBlocked()){
-            throw new DeviceNotFoundException("Устройство с таким MAC-адресом и лицензией уже существует");
+    private int countActivatedDevices(License license) {
+        List<DeviceLicense> deviceLicenses = deviceLicenseService.getDeviceLicensesByLicenseId(license.getLicense_id());
+        return deviceLicenses.size();
+    }
+
+    private void checkDeviceActivationLimit(License license) {
+        int activatedDevices = countActivatedDevices(license);
+        if (activatedDevices >= license.getDevice_count()) {
+            throw new LicenseException("Превышено максимальное количество активированных устройств для лицензии");
         }
     }
+
+    private void verifyDeviceUniqueness(Device device, License newLicense) {
+        List<DeviceLicense> deviceLicenses = deviceLicenseService.getAllLicensesForDevice(device.getId());
+
+
+        boolean isProductAlreadyActivated = deviceLicenses.stream()
+                .anyMatch(deviceLicense ->
+                        deviceLicense.getLicense().getProduct().getId().equals(newLicense.getProduct().getId()));
+
+        if (isProductAlreadyActivated) {
+            throw new LicenseException("Устройство уже активировано для данного продукта.");
+        }
+
+    }
+    private void verifyBlockProduct(Products product) {
+        if (product.getIsBlocked()) {
+            throw new ProductException("Продукт заблокирован и не может быть использован.");
+        }
+    }
+
+
+
+
+
 }

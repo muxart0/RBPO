@@ -1,13 +1,10 @@
 package ru.mtuci.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.List;
 
 
 @Getter
@@ -33,24 +30,6 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(name="role")
-    private ApplicationRole role;;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("user")
-    private List<Device> devices;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("user")
-    private List<LicenseHistory> licenseHistories;
-
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("owner")
-    private List<License> ownedLicenses;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("user")
-    private List<License> usedLicenses;
-
-
+    private ApplicationRole role;
 
 }
